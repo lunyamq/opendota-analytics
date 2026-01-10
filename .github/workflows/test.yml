@@ -15,8 +15,7 @@ jobs:
           - 3306:3306
         env:
           MYSQL_DATABASE: opendota_db
-          MYSQL_USER: root
-          MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -28,9 +27,11 @@ jobs:
           java-version: '17'
 
       - name: Wait for MySQL
+        env:
+          MYSQL_PWD: ${{ secrets.DB_PASSWORD }}
         run: |
           sudo apt-get install -y mysql-client
-          until mysql -h 127.0.0.1 -u test -ptest opendota_db; do
+          until mysql -h 127.0.0.1 -u root opendota_db; do
             echo "Waiting for MySQL..."
             sleep 5
           done
