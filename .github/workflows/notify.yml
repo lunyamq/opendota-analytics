@@ -2,7 +2,7 @@ name: Telegram Notify
 
 on:
   workflow_run:
-    workflows: "mvn test"
+    workflows: "CI Pipeline"
     types:
       - completed
 
