@@ -10,7 +10,7 @@ import org.apache.spark.sql.SparkSession;
 import java.util.Arrays;
 
 public class App {
-    private static final Logger logger = LogManager.getLogger(App.class);
+    private static final Logger LOGGER = LogManager.getLogger(App.class);
 
     public static void main(String[] args) {
         try (SparkSession spark = SparkSession.builder()
@@ -35,7 +35,7 @@ public class App {
             System.setProperty("spark.driver.userClassPathFirst", "false");
             System.setProperty("spark.executor.userClassPathFirst", "false");
             System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
-            logger.info("Запуск OpenDota Analytics...");
+            LOGGER.info("Запуск OpenDota Analytics...");
 
             if (args.length == 0) {
                 CommandLineInterface.showHelp();
@@ -88,19 +88,19 @@ public class App {
                     break;
 
                 default:
-                    logger.error("Неизвестная команда: {}", command);
+                    LOGGER.error("Неизвестная команда: {}", command);
                     CommandLineInterface.showHelp();
             }
 
         } catch (Exception e) {
-            logger.error("Ошибка приложения: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка приложения: {}", e.getMessage(), e);
         }
     }
 
     private static void downloadHeroes(OpenDotaProcessor processor) {
-        logger.info("Загружаем героев...");
+        LOGGER.info("Загружаем героев...");
         processor.processHeroData();
-        logger.info("Загрузка завершена");
+        LOGGER.info("Загрузка завершена");
     }
 
     private static void listHeroes(OpenDotaProcessor processor, String[] args) {
@@ -112,7 +112,7 @@ public class App {
 
     private static void findHeroes(OpenDotaProcessor processor, String[] args) {
         if (args.length < 2) {
-            logger.error("Использьзуйте --find <имя_героя>");
+            LOGGER.error("Использьзуйте --find <имя_героя>");
             return;
         }
 
@@ -124,7 +124,7 @@ public class App {
 
     private static void viewHero(OpenDotaProcessor processor, String[] args) {
         if (args.length < 2) {
-            logger.error("Используйте --view <id_героя>");
+            LOGGER.error("Используйте --view <id_героя>");
             return;
         }
 
@@ -135,31 +135,31 @@ public class App {
             if (hero.count() > 0) {
                 hero.show(false);
             } else {
-                logger.info("Герой с ID {} не найден", id);
+                LOGGER.info("Герой с ID {} не найден", id);
             }
         } catch (NumberFormatException e) {
-            logger.error("Неверный ID героя");
+            LOGGER.error("Неверный ID героя");
         }
     }
 
     private static void addHero(OpenDotaProcessor processor, String[] args) {
         if (args.length < 2) {
-            logger.error("Используйте --add <json_данные>");
+            LOGGER.error("Используйте --add <json_данные>");
             return;
         }
 
         String json = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
 
         if (processor.addHero(json)) {
-            logger.info("Герой успешно добавлен");
+            LOGGER.info("Герой успешно добавлен");
         } else {
-            logger.error("Не удалось добавить героя");
+            LOGGER.error("Не удалось добавить героя");
         }
     }
 
     private static void updateHero(OpenDotaProcessor processor, String[] args) {
         if (args.length < 3) {
-            logger.error("Используйте --update <id_героя> <json_данные>");
+            LOGGER.error("Используйте --update <id_героя> <json_данные>");
             return;
         }
 
@@ -168,18 +168,18 @@ public class App {
             String json = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
 
             if (processor.updateHero(id, json)) {
-                logger.info("Герой успешно обновлен");
+                LOGGER.info("Герой успешно обновлен");
             } else {
-                logger.error("Не удалось обновить героя");
+                LOGGER.error("Не удалось обновить героя");
             }
         } catch (Exception e) {
-            logger.error("Ошибка обновления: {}", e.getMessage());
+            LOGGER.error("Ошибка обновления: {}", e.getMessage());
         }
     }
 
     private static void deleteHero(OpenDotaProcessor processor, String[] args) {
         if (args.length < 2) {
-            logger.error("Используйте --delete <id_героя>");
+            LOGGER.error("Используйте --delete <id_героя>");
             return;
         }
 
@@ -187,23 +187,23 @@ public class App {
             int id = Integer.parseInt(args[1]);
 
             if (processor.deleteHero(id)) {
-                logger.info("Герой успешно удален");
+                LOGGER.info("Герой успешно удален");
             } else {
-                logger.error("Не удалось удалить героя");
+                LOGGER.error("Не удалось удалить героя");
             }
         } catch (NumberFormatException e) {
-            logger.error("Неверный ID");
+            LOGGER.error("Неверный ID");
         }
     }
 
     private static void showStats(OpenDotaProcessor processor) {
-        logger.info("\nСтатистика по атрибутам:");
+        LOGGER.info("\nСтатистика по атрибутам:");
         processor.getAttributeStatistics().show(false);
     }
 
     private static void executeQuery(SparkSession spark, String[] args) {
         if (args.length < 2) {
-            logger.error("Использование: --query <sql_запрос>");
+            LOGGER.error("Использование: --query <sql_запрос>");
             return;
         }
 
@@ -212,7 +212,7 @@ public class App {
         try {
             spark.sql(sql).show(50, false);
         } catch (Exception e) {
-            logger.error("Ошибка выполнения запроса: {}", e.getMessage());
+            LOGGER.error("Ошибка выполнения запроса: {}", e.getMessage());
         }
     }
 }

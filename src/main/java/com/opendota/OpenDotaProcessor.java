@@ -11,17 +11,23 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.spark.sql.*;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.RowFactory;
 
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 public class OpenDotaProcessor {
-    private static final Logger logger = LogManager.getLogger(OpenDotaProcessor.class);
+    private static final Logger LOGGER = LogManager.getLogger(OpenDotaProcessor.class);
     private final Properties properties;
     private final ObjectMapper objectMapper;
     private final SparkSession spark;
@@ -38,12 +44,12 @@ public class OpenDotaProcessor {
                 .getResourceAsStream(AppConstants.PROPERTIES_FILE)) {
             if (input != null) {
                 properties.load(input);
-                logger.info("Свойства загружены успешно");
+                LOGGER.info("Свойства загружены успешно");
             } else {
-                logger.error("Файл свойств не найден");
+                LOGGER.error("Файл свойств не найден");
             }
         } catch (Exception e) {
-            logger.error("Ошибка загрузки свойств: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка загрузки свойств: {}", e.getMessage(), e);
         }
     }
 
@@ -56,10 +62,10 @@ public class OpenDotaProcessor {
             try (Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPassword);
                  PreparedStatement stmt = conn.prepareStatement(AppConstants.CREATE_TABLE_SQL)) {
                 stmt.execute();
-                logger.info("Таблица создана или уже существует");
+                LOGGER.info("Таблица создана или уже существует");
             }
         } catch (Exception e) {
-            logger.error("Ошибка создания таблицы: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка создания таблицы: {}", e.getMessage(), e);
         }
     }
 
@@ -79,10 +85,10 @@ public class OpenDotaProcessor {
                     .load();
 
             heroesDF.createOrReplaceTempView("heroes");
-            logger.info("Загружено {} героев в Spark", heroesDF.count());
+            LOGGER.info("Загружено {} героев в Spark", heroesDF.count());
 
         } catch (Exception e) {
-            logger.error("Ошибка загрузки данных в Spark: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка загрузки данных в Spark: {}", e.getMessage(), e);
         }
     }
 
@@ -102,11 +108,11 @@ public class OpenDotaProcessor {
                     .option("password", dbPassword)
                     .save();
 
-            logger.info("Данные сохранены в MySQL");
+            LOGGER.info("Данные сохранены в MySQL");
             loadDataToSpark();
 
         } catch (Exception e) {
-            logger.error("Ошибка сохранения в MySQL: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка сохранения в MySQL: {}", e.getMessage(), e);
         }
     }
 
@@ -139,11 +145,11 @@ public class OpenDotaProcessor {
 
             saveToMySQL(updatedHeroes);
 
-            logger.info("Герой успешно добавлен");
+            LOGGER.info("Герой успешно добавлен");
             return true;
 
         } catch (Exception e) {
-            logger.error("Ошибка добавления героя: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка добавления героя: {}", e.getMessage(), e);
             return false;
         }
     }
@@ -155,7 +161,7 @@ public class OpenDotaProcessor {
                     "base_attack_min, base_attack_max, move_speed, primary_attribute " +
                     "FROM heroes ORDER BY hero_name LIMIT " + limit);
         } catch (Exception e) {
-            logger.error("Ошибка получения героев: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка получения героев: {}", e.getMessage(), e);
             return spark.emptyDataFrame();
         }
     }
@@ -165,7 +171,7 @@ public class OpenDotaProcessor {
             loadDataToSpark();
             return spark.sql("SELECT * FROM heroes WHERE hero_id = " + id);
         } catch (Exception e) {
-            logger.error("Ошибка поиска героя по ID: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка поиска героя по ID: {}", e.getMessage(), e);
             return spark.emptyDataFrame();
         }
     }
@@ -176,7 +182,7 @@ public class OpenDotaProcessor {
             return spark.sql("SELECT hero_id, hero_name, base_health, move_speed, primary_attribute " +
                     "FROM heroes WHERE hero_name LIKE '%" + name + "%' ORDER BY hero_name");
         } catch (Exception e) {
-            logger.error("Ошибка поиска героев по имени: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка поиска героев по имени: {}", e.getMessage(), e);
             return spark.emptyDataFrame();
         }
     }
@@ -188,7 +194,7 @@ public class OpenDotaProcessor {
         ResultSet rs = null;
 
         try {
-            logger.info("Обновление героя {}", heroId);
+            LOGGER.info("Обновление героя {}", heroId);
 
             JsonNode jsonNode = objectMapper.readTree(jsonData);
 
@@ -204,7 +210,7 @@ public class OpenDotaProcessor {
             rs = checkStmt.executeQuery();
 
             if (!rs.next()) {
-                logger.error("Герой {} не найден", heroId);
+                LOGGER.error("Герой {} не найден", heroId);
                 return false;
             }
 
@@ -259,15 +265,15 @@ public class OpenDotaProcessor {
             int rowsUpdated = updateStmt.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Герой {} успешно обновлён. Обновлено {} строк", heroId, rowsUpdated);
+                LOGGER.info("Герой {} успешно обновлён. Обновлено {} строк", heroId, rowsUpdated);
                 return true;
             } else {
-                logger.error("Герой {} не был обновлён", heroId);
+                LOGGER.error("Герой {} не был обновлён", heroId);
                 return false;
             }
 
         } catch (Exception e) {
-            logger.error("Ошибка обновления героя {}: {}", heroId, e.getMessage(), e);
+            LOGGER.error("Ошибка обновления героя {}: {}", heroId, e.getMessage(), e);
             return false;
         } finally {
             try { if (rs != null) rs.close(); } catch (Exception ignored) {}
@@ -284,7 +290,7 @@ public class OpenDotaProcessor {
         ResultSet rs = null;
 
         try {
-            logger.info("Удаление героя {}", heroId);
+            LOGGER.info("Удаление героя {}", heroId);
 
             String dbUrl = properties.getProperty(AppConstants.DB_URL);
             String dbUser = properties.getProperty(AppConstants.DB_USER);
@@ -301,7 +307,7 @@ public class OpenDotaProcessor {
             int count = rs.getInt("count");
 
             if (count == 0) {
-                logger.warn("Герой {} не найден", heroId);
+                LOGGER.warn("Герой {} не найден", heroId);
                 return false;
             }
 
@@ -312,15 +318,15 @@ public class OpenDotaProcessor {
             int rowsDeleted = deleteStmt.executeUpdate();
 
             if (rowsDeleted > 0) {
-                logger.info("Герой {} успешно удалён. Удалено {} строк", heroId, rowsDeleted);
+                LOGGER.info("Герой {} успешно удалён. Удалено {} строк", heroId, rowsDeleted);
                 return true;
             } else {
-                logger.error("Герой {} не был удалён", heroId);
+                LOGGER.error("Герой {} не был удалён", heroId);
                 return false;
             }
 
         } catch (Exception e) {
-            logger.error("Ошибка удаления героя {}: {}", heroId, e.getMessage(), e);
+            LOGGER.error("Ошибка удаления героя {}: {}", heroId, e.getMessage(), e);
             return false;
         } finally {
             try { if (rs != null) rs.close(); } catch (Exception ignored) {}
@@ -340,7 +346,7 @@ public class OpenDotaProcessor {
                     "AVG(move_speed) as avg_speed " +
                     "FROM heroes GROUP BY primary_attribute ORDER BY hero_count DESC");
         } catch (Exception e) {
-            logger.error("Ошибка получения статистики: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка получения статистики: {}", e.getMessage(), e);
             return spark.emptyDataFrame();
         }
     }
@@ -348,38 +354,38 @@ public class OpenDotaProcessor {
 
     public void processHeroData() {
         try {
-            logger.info("Начинаем обработку данных...");
+            LOGGER.info("Начинаем обработку данных...");
 
-            logger.info("Загружаем данные с OpenDota API...");
+            LOGGER.info("Загружаем данные с OpenDota API...");
             String jsonData = downloadHeroData();
 
             if (jsonData == null || jsonData.isEmpty()) {
-                logger.error("Не удалось загрузить данные");
+                LOGGER.error("Не удалось загрузить данные");
                 return;
             }
 
-            logger.info("Парсим JSON данные...");
+            LOGGER.info("Парсим JSON данные...");
             List<HeroStats> heroStatsList = parseHeroData(jsonData);
 
             if (heroStatsList.isEmpty()) {
-                logger.error("Нет данных для обработки");
+                LOGGER.error("Нет данных для обработки");
                 return;
             }
 
-            logger.info("Создаем DataFrame...");
+            LOGGER.info("Создаем DataFrame...");
             Dataset<Row> heroDF = spark.createDataFrame(heroStatsList, HeroStats.class);
 
-            logger.info("Пример данных:");
+            LOGGER.info("Пример данных:");
             heroDF.select("id", "localizedName", "baseHealth", "baseAttackMin",
                     "baseAttackMax", "moveSpeed", "primaryAttr").show(5, false);
 
-            logger.info("Записываем в MySQL...");
+            LOGGER.info("Записываем в MySQL...");
             writeToMySQL(heroDF);
 
-            logger.info("Обработка данных успешно завершена!");
+            LOGGER.info("Обработка данных успешно завершена!");
 
         } catch (Exception e) {
-            logger.error("Ошибка обработки данных: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка обработки данных: {}", e.getMessage(), e);
         }
     }
 
@@ -388,20 +394,20 @@ public class OpenDotaProcessor {
             HttpGet request = new HttpGet(AppConstants.HERO_STATS_URL);
             request.addHeader("User-Agent", AppConstants.USER_AGENT);
 
-            logger.info("Отправляем запрос: {}", AppConstants.HERO_STATS_URL);
+            LOGGER.info("Отправляем запрос: {}", AppConstants.HERO_STATS_URL);
             HttpResponse response = httpClient.execute(request);
 
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == 200) {
                 String responseBody = EntityUtils.toString(response.getEntity());
-                logger.info("Успешно загружено {} символов", responseBody.length());
+                LOGGER.info("Успешно загружено {} символов", responseBody.length());
                 return responseBody;
             } else {
-                logger.error("Ошибка HTTP: {}", statusCode);
+                LOGGER.error("Ошибка HTTP: {}", statusCode);
                 return null;
             }
         } catch (Exception e) {
-            logger.error("Ошибка загрузки данных: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка загрузки данных: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -443,10 +449,10 @@ public class OpenDotaProcessor {
                 heroStatsList.add(heroStats);
             }
 
-            logger.info("Распаршено {} героев", heroStatsList.size());
+            LOGGER.info("Распаршено {} героев", heroStatsList.size());
 
         } catch (Exception e) {
-            logger.error("Ошибка парсинга JSON: {}", e.getMessage(), e);
+            LOGGER.error("Ошибка парсинга JSON: {}", e.getMessage(), e);
         }
 
         return heroStatsList;
@@ -459,7 +465,7 @@ public class OpenDotaProcessor {
             String dbPassword = properties.getProperty(AppConstants.DB_PASSWORD, "");
             String dbTable = properties.getProperty(AppConstants.DB_TABLE, "hero_stats");
 
-            logger.info("Подключаемся к базе данных...");
+            LOGGER.info("Подключаемся к базе данных...");
 
             Dataset<Row> transformedDF = heroDF
                     .withColumnRenamed("id", "hero_id")
@@ -487,7 +493,7 @@ public class OpenDotaProcessor {
                     "roles"
             );
 
-            logger.info("Записываем данные в MySQL...");
+            LOGGER.info("Записываем данные в MySQL...");
 
             columnsToWrite.write()
                     .mode(SaveMode.Append)
@@ -498,10 +504,10 @@ public class OpenDotaProcessor {
                     .option("password", dbPassword)
                     .save();
 
-            logger.info("Успешно сохранено {} записей в БД", transformedDF.count());
+            LOGGER.info("Успешно сохранено {} записей в БД", transformedDF.count());
 
         } catch (Exception e) {
-            logger.error(e);
+            LOGGER.error(e);
         }
     }
 }
