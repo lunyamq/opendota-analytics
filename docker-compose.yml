@@ -8,8 +8,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: 2233
       MYSQL_DATABASE: opendota_db
-    ports:
-      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
 
