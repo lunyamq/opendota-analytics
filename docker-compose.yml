@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: opendota-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 2233
+      MYSQL_DATABASE: opendota_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  app:
+    build: .
+    container_name: opendota-app
+    depends_on:
+      - mysql
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/opendota_db
+      DB_USER: root
+      DB_PASSWORD: 2233
+    command: ["java", "-jar", "app.jar", "--download"]
+    restart: "no"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: opendota-grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  mysql_data:
+  grafana_data:
